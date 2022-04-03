@@ -9,14 +9,16 @@ from datetime import datetime
 from time import sleep
 from requests import get
 from netifaces import ifaddresses, AF_INET
+from os import environ
 
-SLEEP_TIME = 30
+SLEEP_TIME = 10
 
 MOUNTED_DISK = "/media/disk"
 
 EXTERNAL_IP_POOL = "https://ipecho.net/plain"
 DATE_FORMAT = "%H:%M:%S %d/%m/%y"
 
+DEBUG = False if environ.get("DEBUG") is None else True
 
 def get_ip():
     return ifaddresses('eth0')[AF_INET][0]['addr']
@@ -61,6 +63,13 @@ class Data:
         self.internal_ip = get_ip()
         self.external_ip = get_external_ip()
 
+    def is_same(self, old_data):
+        return (old_data is not None 
+        and self.hostname == old_data.hostname 
+        and self.internal_ip == old_data.internal_ip 
+        and self.external_ip == old_data.external_ip 
+        and self.diskspace == old_data.diskspace)
+
 BLACK = 0
 WHITE = 255
 ROW_HEIGHT = 20
@@ -102,7 +111,7 @@ class Drawer:
         image = image.rotate(90, expand=1) # rotate for screen
 
         main_plane.paste(image)
-        self.display.display_frame(main_plane)
+        self.display.smart_update(main_plane)
 
     def _draw_row(self, text, draw):
         index = self.index
@@ -179,13 +188,27 @@ def unify_and_construct(rows):
     return ret_rows
 
 def main():   
-    print("initializing...")
+    if DEBUG:
+        print("initializing...")
+        
     epd = EPD()
     epd.init()
 
+    old_data = None
     try:
         while True:
+            if DEBUG:
+                print("Updating: %s" % now())
+
             current_data = Data()
+            
+            if current_data.is_same(old_data):
+                sleep(SLEEP_TIME)
+                continue
+            else:
+                if DEBUG:
+                    print("New data refreshing! %s" % now())
+                old_data = current_data
 
             build_structure = structure_display(current_data)
 
@@ -193,14 +216,18 @@ def main():
 
             Drawer(epd).draw_screen(rows)
 
-            # for row in rows:
-            #     print(row)
+            if DEBUG:
+                print("\n----- Output -----")
+                for row in rows:
+                    print(row)
+                print("----- Output -----\n")
 
-            sleep(SLEEP_TIME)
+            
     except KeyboardInterrupt:
         epd.sleep()
     
-    print("Exiting")
+    if DEBUG:
+        print("Exiting")
 
 
 if __name__ == '__main__':
