@@ -1,0 +1,12 @@
+[Unit]
+Description=Screen service
+After=multi-user.target
+
+[Service]
+Type=simple
+Retart=none
+ExecStart=/usr/bin/python3 $ROOT_DIRECTORY/data.py
+ExecStop=/usr/bin/python3 $ROOT_DIRECTORY/rpi_epd2in7/demos/clear_screen.py
+
+[Install]
+WantedBy=multi-user.target
